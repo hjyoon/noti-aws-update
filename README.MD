@@ -10,7 +10,8 @@
 
 ### git 
 - git clone 
-- switch develop
+- git pull origin develop
+- git switch develop
 - merge to main 
 
 
