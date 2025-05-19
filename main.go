@@ -57,7 +57,8 @@ func extractWhatsNewTable(body string) []NewsItem {
 	datePattern := regexp.MustCompile(DateFormatPattern)
 	var items []NewsItem
 
-	for i := start + 1; i < len(lines); i++ {
+	n := len(lines)
+	for i := start + 1; i < n; i++ {
 		line := strings.TrimSpace(lines[i])
 		if strings.Contains(line, SectionUpcomingLaunches) {
 			break
@@ -69,7 +70,7 @@ func extractWhatsNewTable(body string) []NewsItem {
 
 		// 날짜 줄 탐색 (빈 줄 skip)
 		date := ""
-		for j := i + 1; j < len(lines); j++ {
+		for j := i + 1; j < n; j++ {
 			dateCandidate := strings.TrimSpace(lines[j])
 			if dateCandidate == "" {
 				continue
@@ -98,8 +99,10 @@ func extractMainUpdates(body string) []string {
 	lines := strings.Split(body, "\n")
 	start := -1
 
+	n := len(lines)
+
 	// "주요 업데이트" 이후부터 시작
-	for i := start + 1; i < len(lines); i++ {
+	for i := start + 1; i < n; i++ {
 		if strings.Contains(lines[i], SectionMainUpdates) {
 			start = i
 			break
@@ -112,7 +115,7 @@ func extractMainUpdates(body string) []string {
 
 	re := regexp.MustCompile(`^\s*\*`)
 	var updates []string
-	for i := start + 1; i < len(lines); i++ {
+	for i := start + 1; i < n; i++ {
 		line := strings.TrimSpace(lines[i])
 		if strings.Contains(line, TableHeaderTitle) {
 			break
