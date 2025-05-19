@@ -1,3 +1,29 @@
+/*
+Mail format assumptions
+-----------------------
+The plain-text body is expected to look like:
+
+What's New
+<title> <URL>
+YYYY년 MM월 DD일
+
+... (repeats)
+
+Upcoming Launches <- marks end of table
+
+주요 업데이트
+* <bullet text> <- collect until "제목" header
+
+Rules
+  • "What's New" section ends when "Upcoming Launches" appears.
+  • Each table row = one line "Title <URL>" followed by a non-blank date line.
+  • Dates must match `^\d{4}년 \d{2}월 \d{2}일$`.
+  • "주요 업데이트" collects bullet lines (`^\s*\*`), stops at "제목" header.
+
+이 포맷만 만족하면 정상적으로 파싱이 된다.
+testdata/ 폴더안에 예시 email 파일이 첨부되어 있음.
+*/
+
 package main
 
 import (
