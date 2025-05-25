@@ -169,16 +169,16 @@ func extractMainUpdates(body string) []string {
 		return nil
 	}
 
-	re := regexp.MustCompile(`^\s*\*`)
+	re := regexp.MustCompile(`^\s*[\*\-\+]`)
 	var updates []string
 	for i := start + 1; i < n; i++ {
-		line := strings.TrimSpace(lines[i])
-		if strings.Contains(line, TableHeaderTitle) {
+		line := lines[i]
+		trimmed := strings.TrimSpace(line)
+		if strings.Contains(trimmed, TableHeaderTitle) {
 			break
 		}
 		if re.MatchString(line) {
-			update := re.ReplaceAllString(line, "")
-			updates = append(updates, strings.TrimSpace(update))
+			updates = append(updates, line)
 		}
 	}
 	return updates

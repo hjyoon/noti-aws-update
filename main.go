@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -69,4 +70,11 @@ func main() {
 		newsItems, updates, subject := parseMail(r)
 		printMailSummary(subject, newsItems, updates)
 	}
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	http.ListenAndServe(":8000", nil)
 }
