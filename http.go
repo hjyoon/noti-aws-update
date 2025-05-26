@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func StartHTTPServer(conn *pgx.Conn) {
+func StartHTTPServer(conn *pgx.Conn, port string) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
@@ -26,7 +26,9 @@ func StartHTTPServer(conn *pgx.Conn) {
 		w.Write([]byte("OK"))
 	})
 
-	if err := http.ListenAndServe(":8000", nil); err != nil {
+	addr := ":" + port
+	log.Printf("Start Server: http://localhost%s", addr)
+	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatal(err)
 	}
 }

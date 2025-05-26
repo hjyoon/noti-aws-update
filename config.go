@@ -21,6 +21,7 @@ type Config struct {
 	ImapPassword string
 	TestdataDir  string
 	DBUrl        string
+	AppPort      string
 }
 
 const (
@@ -37,6 +38,10 @@ func loadConfig() Config {
 			TestdataDir: defaultTestdata,
 		}
 	}
+	appPort := os.Getenv("APP_PORT")
+	if appPort == "" {
+		appPort = "8000" // 환경 변수 미설정 시 디폴트 포트번호 지정
+	}
 	return Config{
 		Mode:         ModeIMAP,
 		ImapServer:   os.Getenv("IMAP_SERVER"),
@@ -44,5 +49,6 @@ func loadConfig() Config {
 		ImapPassword: os.Getenv("IMAP_PASSWORD"),
 		TestdataDir:  defaultTestdata,
 		DBUrl:        os.Getenv("DATABASE_URL"),
+		AppPort:      appPort,
 	}
 }

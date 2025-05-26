@@ -78,5 +78,5 @@ func main() {
 		printMailSummary(subject, newsItems, updates)
 	}
 
-	StartHTTPServer(conn)
+	StartHTTPServer(conn, cfg.AppPort)
 }
