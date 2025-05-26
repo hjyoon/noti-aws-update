@@ -20,6 +20,7 @@ type Config struct {
 	ImapUser     string
 	ImapPassword string
 	TestdataDir  string
+	DBUrl        string
 }
 
 const (
@@ -42,5 +43,6 @@ func loadConfig() Config {
 		ImapUser:     os.Getenv("IMAP_USER"),
 		ImapPassword: os.Getenv("IMAP_PASSWORD"),
 		TestdataDir:  defaultTestdata,
+		DBUrl:        os.Getenv("DATABASE_URL"),
 	}
 }

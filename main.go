@@ -1,10 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 )
@@ -48,8 +48,15 @@ func printMailSummary(subject string, newsItems []NewsItem, updates []string) {
 
 func main() {
 	cfg := loadConfig()
+
+	conn, err := NewDB(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close(context.Background())
+
 	var readers []io.Reader
-	var err error
 
 	switch cfg.Mode {
 	case ModeIMAP:
@@ -71,10 +78,5 @@ func main() {
 		printMailSummary(subject, newsItems, updates)
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
-
-	http.ListenAndServe(":8000", nil)
+	StartHTTPServer(conn)
 }
