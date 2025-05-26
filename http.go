@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -20,12 +21,24 @@ func StartHTTPServer(conn *pgx.Conn, port string) {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
+
+		status := "ok"
+		dbStatus := "ok"
 		if err := conn.Ping(ctx); err != nil {
-			http.Error(w, "DB NOT OK: "+err.Error(), http.StatusServiceUnavailable)
-			return
+			status = "fail"
+			dbStatus = "fail"
 		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+
+		w.Header().Set("Content-Type", "application/json")
+		code := http.StatusOK
+		if status != "ok" {
+			code = http.StatusServiceUnavailable
+		}
+		w.WriteHeader(code)
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":   status,
+			"dbStatus": dbStatus,
+		})
 	})
 
 	addr := ":" + port
