@@ -7,7 +7,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgres://ghost:ghost@db:5432/appdb
+      - DATABASE_HOST=db
     depends_on:
       - db
 
@@ -15,9 +15,9 @@ services:
     image: docker.io/library/postgres:16
     container_name: myapp-postgres
     environment:
-      - POSTGRES_DB=appdb
-      - POSTGRES_USER=ghost
-      - POSTGRES_PASSWORD=ghost
+      - POSTGRES_DB=${DATABASE_DB}
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
     ports:
       - "12345:5432"
     volumes:

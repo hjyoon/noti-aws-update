@@ -20,7 +20,11 @@ type Config struct {
 	ImapUser     string
 	ImapPassword string
 	TestdataDir  string
-	DBUrl        string
+	DBUser       string
+	DBPassword   string
+	DBHost       string
+	DBPort       string
+	DBName       string
 	AppPort      string
 }
 
@@ -48,7 +52,11 @@ func loadConfig() Config {
 		ImapUser:     os.Getenv("IMAP_USER"),
 		ImapPassword: os.Getenv("IMAP_PASSWORD"),
 		TestdataDir:  defaultTestdata,
-		DBUrl:        os.Getenv("DATABASE_URL"),
+		DBUser:       os.Getenv("DATABASE_USER"),
+		DBPassword:   os.Getenv("DATABASE_PASSWORD"),
+		DBHost:       os.Getenv("DATABASE_HOST"),
+		DBPort:       os.Getenv("DATABASE_PORT"),
+		DBName:       os.Getenv("DATABASE_DB"),
 		AppPort:      appPort,
 	}
 }
