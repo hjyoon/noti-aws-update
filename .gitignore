@@ -32,3 +32,5 @@ go.work.sum
 .vscode/
 .idea/
 *.code-workspace
+
+/collect/node_modules
