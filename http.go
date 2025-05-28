@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -71,6 +72,43 @@ func StartHTTPServer(conn *pgx.Conn, port string) {
 		if err := json.NewEncoder(w).Encode(tags); err != nil {
 			http.Error(w, "Encoding error", http.StatusInternalServerError)
 		}
+	})
+
+	mux.HandleFunc("/api/whatsnews", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		limit := 20
+		offset := 0
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 100 {
+				limit = n
+			}
+		}
+		if o := r.URL.Query().Get("offset"); o != "" {
+			if n, err := strconv.Atoi(o); err == nil && n >= 0 {
+				offset = n
+			}
+		}
+
+		tagIDs := []int{}
+		if ids := r.URL.Query().Get("tags"); ids != "" {
+			for _, p := range strings.Split(ids, ",") {
+				if id, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
+					tagIDs = append(tagIDs, id)
+				}
+			}
+		}
+
+		result, err := GetWhatsnews(r.Context(), conn, limit, offset, tagIDs)
+		if err != nil {
+			http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(result)
 	})
 
 	addr := ":" + port
