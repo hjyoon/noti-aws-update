@@ -18,7 +18,7 @@ case "$opt" in
     ;;
   2)
     docker-compose down
-    docker-compose --env-file ./.env up --build
+    docker-compose --env-file ./.env up myapp pgadmin --build
     ;;
   3)
     . ./.env
