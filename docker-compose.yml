@@ -24,5 +24,16 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d
 
+  pgadmin:
+    image: docker.io/dpage/pgadmin4
+    container_name: myapp-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "12346:80"
+    depends_on:
+      - db
+
 volumes:
   postgres-data:
