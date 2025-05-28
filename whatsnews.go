@@ -49,12 +49,11 @@ SELECT COUNT(*) FROM (
   ` + filterHaving + `
 ) sub
 `
+
 	queryData := `
 SELECT wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at,
   COALESCE(
-    json_agg(
-      DISTINCT jsonb_build_object('id', t2.id, 'name', t2.name)
-    ) FILTER (WHERE t2.id IS NOT NULL), '[]'
+    json_agg(tag_obj ORDER BY tag_obj->>'name') FILTER (WHERE tag_obj IS NOT NULL), '[]'
   ) AS tags
 FROM (
     SELECT wn.id
@@ -67,8 +66,11 @@ FROM (
     LIMIT $3 OFFSET $4
 ) filtered
 JOIN whatsnews wn ON wn.id = filtered.id
-LEFT JOIN whatsnews_tags wnt2 ON wn.id = wnt2.whatsnew_id
-LEFT JOIN tags t2 ON t2.id = wnt2.tag_id
+LEFT JOIN (
+    SELECT wnt2.whatsnew_id, jsonb_build_object('id', t2.id, 'name', t2.name) AS tag_obj
+    FROM whatsnews_tags wnt2
+    JOIN tags t2 ON t2.id = wnt2.tag_id
+) tag_objs ON wn.id = tag_objs.whatsnew_id
 GROUP BY wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at
 ORDER BY wn.source_created_at DESC, wn.title
 `
