@@ -35,5 +35,15 @@ services:
     depends_on:
       - db
 
+  myinit:
+    build:
+      context: .
+      dockerfile: collect/Dockerfile
+    container_name: myapp-init
+    environment:
+      - DATABASE_HOST=db
+    depends_on:
+      - db
+
 volumes:
   postgres-data:

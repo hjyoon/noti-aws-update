@@ -1,11 +1,32 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
 import pkg from "pg";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+let envPath = path.resolve(__dirname, ".env");
+
+if (!fs.existsSync(envPath)) {
+  envPath = path.resolve(__dirname, "../.env");
+
+  if (!fs.existsSync(envPath)) {
+    console.error("Error: .env 파일을 찾을 수 없습니다.");
+    process.exit(1);
+  }
+}
+
+dotenv.config({ path: envPath });
+
 const { Pool } = pkg;
 
 const pool = new Pool({
-  user: "ghost",
-  host: "localhost",
-  database: "appdb",
-  password: "ghost",
+  user: process.env.DATABASE_USER,
+  host: process.env.DATABASE_HOST,
+  database: process.env.DATABASE_DB,
+  password: process.env.DATABASE_PASSWORD,
   port: 5432,
 });
 
