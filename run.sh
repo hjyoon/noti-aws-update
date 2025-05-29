@@ -23,6 +23,7 @@ case "$opt" in
   3)
     . ./.env
     PGPASSWORD="$DATABASE_PASSWORD" psql -h "$DATABASE_HOST" -U "$DATABASE_USER" -d "$DATABASE_DB" -f ./initdb/init.sql
+    (cd collect/ && npm run start)
     go mod tidy
     go build -o ./build/myapp
     ./build/myapp
