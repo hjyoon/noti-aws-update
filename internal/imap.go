@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/emersion/go-imap/client"
 )
 
-func connectIMAP(cfg Config) (*client.Client, error) {
+func ConnectIMAP(cfg Config) (*client.Client, error) {
 	log.Println("Connecting:", cfg.ImapServer)
 
 	c, err := client.DialTLS(cfg.ImapServer, nil)
@@ -24,7 +24,7 @@ func connectIMAP(cfg Config) (*client.Client, error) {
 	return c, nil
 }
 
-func fetchMailReadersFromIMAP(c *client.Client) ([]io.Reader, error) {
+func FetchMailReadersFromIMAP(c *client.Client) ([]io.Reader, error) {
 	mbox, err := c.Select("INBOX", false)
 	if err != nil {
 		log.Println("Failed to select INBOX:", err)

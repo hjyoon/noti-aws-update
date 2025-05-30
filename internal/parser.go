@@ -24,7 +24,7 @@ Rules
 testdata/ 폴더안에 예시 email 파일이 첨부되어 있음.
 */
 
-package main
+package internal
 
 import (
 	"io"
@@ -42,7 +42,7 @@ type NewsItem struct {
 	Date  string
 }
 
-func parseMail(src io.Reader) ([]NewsItem, []string, string) {
+func ParseMail(src io.Reader) ([]NewsItem, []string, string) {
 	mr, err := mail.CreateReader(src)
 	if err != nil {
 		log.Println("CreateReader failed:", err)

@@ -1,4 +1,4 @@
-package main
+package internal
 
 const (
 	SubjectFilter             = "AWS Weekly Update (AWS Confidential)"

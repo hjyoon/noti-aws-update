@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"log"
@@ -33,7 +33,7 @@ const (
 	defaultTestdata = "./testdata"
 )
 
-func loadConfig() Config {
+func LoadConfig() Config {
 	// .env 존재 시 IMAP 모드, 없으면 테스트 모드
 	if err := godotenv.Load(envFile); err != nil {
 		log.Printf("No %s; fallback to testdata mode", envFile)

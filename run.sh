@@ -13,7 +13,7 @@ read -r opt
 case "$opt" in
   1)
     go mod tidy
-    go build -o ./build/myapp
+    go build -o ./build/myapp ./cmd/httpserver
     ./build/myapp
     ;;
   2)

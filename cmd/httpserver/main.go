@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.krafton.com/ops2022/noti-aws-update/internal"
 )
 
 func fetchMailReadersFromDir(dir string) ([]io.Reader, error) {
@@ -16,7 +18,7 @@ func fetchMailReadersFromDir(dir string) ([]io.Reader, error) {
 	}
 	var readers []io.Reader
 	for _, f := range files {
-		if !f.IsDir() && strings.HasSuffix(f.Name(), MIMEFileExtension) {
+		if !f.IsDir() && strings.HasSuffix(f.Name(), internal.MIMEFileExtension) {
 			path := dir + "/" + f.Name()
 			src, err := os.Open(path)
 			if err != nil {
@@ -29,7 +31,7 @@ func fetchMailReadersFromDir(dir string) ([]io.Reader, error) {
 	return readers, nil
 }
 
-func printMailSummary(subject string, newsItems []NewsItem, updates []string) {
+func printMailSummary(subject string, newsItems []internal.NewsItem, updates []string) {
 	fmt.Println("Subject:", subject)
 	fmt.Println("--- WhatsNewTable ---")
 	for i, item := range newsItems {
@@ -46,22 +48,22 @@ func printMailSummary(subject string, newsItems []NewsItem, updates []string) {
 }
 
 func main() {
-	cfg := loadConfig()
+	cfg := internal.LoadConfig()
 
-	pool, err := NewDBPool(cfg)
+	pool, err := internal.NewDBPool(cfg)
 	defer pool.Close()
 
 	var readers []io.Reader
 
 	switch cfg.Mode {
-	case ModeIMAP:
-		c, err := connectIMAP(cfg)
+	case internal.ModeIMAP:
+		c, err := internal.ConnectIMAP(cfg)
 		if err != nil {
 			log.Fatal(err)
 		}
 		defer c.Logout()
-		readers, err = fetchMailReadersFromIMAP(c)
-	case ModeTestdata:
+		readers, err = internal.FetchMailReadersFromIMAP(c)
+	case internal.ModeTestdata:
 		readers, err = fetchMailReadersFromDir(cfg.TestdataDir)
 	}
 
@@ -69,9 +71,9 @@ func main() {
 		log.Fatal(err)
 	}
 	for _, r := range readers {
-		newsItems, updates, subject := parseMail(r)
+		newsItems, updates, subject := internal.ParseMail(r)
 		printMailSummary(subject, newsItems, updates)
 	}
 
-	StartHTTPServer(pool, cfg.AppPort)
+	internal.StartHTTPServer(pool, cfg.AppPort)
 }
