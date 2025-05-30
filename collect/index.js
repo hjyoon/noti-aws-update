@@ -51,6 +51,36 @@ async function getDbClientWithRetry(maxAttempts = 5, delayMs = 1000) {
   }
 }
 
+async function fetchWithRetry(
+  url,
+  options = {},
+  maxAttempts = 5,
+  baseDelay = 1000,
+) {
+  let attempts = 0;
+  let delay = baseDelay;
+  while (attempts < maxAttempts) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+      return response;
+    } catch (err) {
+      attempts++;
+      console.error(
+        `Fetch failed (${attempts}/${maxAttempts}): ${err.message}`,
+      );
+      if (attempts >= maxAttempts) {
+        throw err;
+      }
+      delay = decorrelatedJitter(baseDelay, 30000, delay);
+      console.log(`Retrying fetch in ${delay} ms...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
 function decorrelatedJitter(baseDelay, maxDelay, previousDelay) {
   if (!previousDelay) {
     previousDelay = baseDelay;
@@ -136,7 +166,7 @@ async function transactionCustom(item, tags, maxRetry = 3) {
 }
 
 async function fetch_and_save(apiUrl) {
-  const response = await fetch(apiUrl);
+  const response = await fetchWithRetry(apiUrl);
   const data = await response.json();
   if (data.metadata.count === 0) {
     return;
