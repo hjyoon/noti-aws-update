@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type WhatsNews struct {
@@ -26,7 +26,7 @@ type WhatsNewsResult struct {
 	TotalPage int         `json:"total_page"`
 }
 
-func GetWhatsnews(ctx context.Context, conn *pgx.Conn, limit, offset int, tagIDs []int) (WhatsNewsResult, error) {
+func GetWhatsnews(ctx context.Context, pool *pgxpool.Pool, limit, offset int, tagIDs []int) (WhatsNewsResult, error) {
 	var (
 		total int
 		args  []any
@@ -77,11 +77,11 @@ ORDER BY wn.source_created_at DESC, wn.title
 	argsForData := append(args, limit, offset)
 	argsForCount := args
 
-	if err := conn.QueryRow(ctx, queryCount, argsForCount...).Scan(&total); err != nil {
+	if err := pool.QueryRow(ctx, queryCount, argsForCount...).Scan(&total); err != nil {
 		return WhatsNewsResult{}, err
 	}
 
-	rows, err := conn.Query(ctx, queryData, argsForData...)
+	rows, err := pool.Query(ctx, queryData, argsForData...)
 	if err != nil {
 		return WhatsNewsResult{}, err
 	}

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func StartHTTPServer(conn *pgx.Conn, port string) {
+func StartHTTPServer(pool *pgxpool.Pool, port string) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +26,7 @@ func StartHTTPServer(conn *pgx.Conn, port string) {
 
 		status := "ok"
 		dbStatus := "ok"
-		if err := conn.Ping(ctx); err != nil {
+		if err := pool.Ping(ctx); err != nil {
 			status = "fail"
 			dbStatus = "fail"
 		}
@@ -63,7 +63,7 @@ func StartHTTPServer(conn *pgx.Conn, port string) {
 		}
 		nameFilter := r.URL.Query().Get("name")
 
-		tags, err := GetTags(r.Context(), conn, limit, offset, nameFilter)
+		tags, err := GetTags(r.Context(), pool, limit, offset, nameFilter)
 		if err != nil {
 			http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -102,7 +102,7 @@ func StartHTTPServer(conn *pgx.Conn, port string) {
 			}
 		}
 
-		result, err := GetWhatsnews(r.Context(), conn, limit, offset, tagIDs)
+		result, err := GetWhatsnews(r.Context(), pool, limit, offset, tagIDs)
 		if err != nil {
 			http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
 			return

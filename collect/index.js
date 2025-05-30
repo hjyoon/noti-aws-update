@@ -27,8 +27,29 @@ const pool = new Pool({
   host: process.env.DATABASE_HOST,
   database: process.env.DATABASE_DB,
   password: process.env.DATABASE_PASSWORD,
-  port: 5432,
+  port: process.env.DATABASE_PORT,
 });
+
+async function getDbClientWithRetry(maxAttempts = 5, delayMs = 1000) {
+  let attempts = 0;
+  while (attempts < maxAttempts) {
+    try {
+      const client = await pool.connect();
+      return client;
+    } catch (err) {
+      attempts++;
+      console.error(
+        `Database connection failed (${attempts}/${maxAttempts}): ${err.message}`,
+      );
+      if (attempts >= maxAttempts) {
+        console.error("All database connection attempts failed. Exiting...");
+        process.exit(1);
+      }
+      console.log(`Retrying connection in ${delayMs} ms...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
 
 function decorrelatedJitter(baseDelay, maxDelay, previousDelay) {
   if (!previousDelay) {
@@ -44,7 +65,7 @@ async function transactionCustom(item, tags, maxRetry = 3) {
   let attempts = 0;
   let delay = null;
   while (attempts < maxRetry) {
-    const client = await pool.connect();
+    const client = await getDbClientWithRetry(10);
     try {
       await client.query("BEGIN");
       const whatsnews_res = await client.query(

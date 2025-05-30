@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -49,12 +48,8 @@ func printMailSummary(subject string, newsItems []NewsItem, updates []string) {
 func main() {
 	cfg := loadConfig()
 
-	conn, err := NewDB(cfg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close(context.Background())
+	pool, err := NewDBPool(cfg)
+	defer pool.Close()
 
 	var readers []io.Reader
 
@@ -78,5 +73,5 @@ func main() {
 		printMailSummary(subject, newsItems, updates)
 	}
 
-	StartHTTPServer(conn, cfg.AppPort)
+	StartHTTPServer(pool, cfg.AppPort)
 }

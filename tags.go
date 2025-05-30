@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Tag struct {
@@ -19,7 +19,7 @@ type TagsResult struct {
 	TotalPage int   `json:"total_page"`
 }
 
-func GetTags(ctx context.Context, conn *pgx.Conn, limit, offset int, nameFilter string) (TagsResult, error) {
+func GetTags(ctx context.Context, pool *pgxpool.Pool, limit, offset int, nameFilter string) (TagsResult, error) {
 	var (
 		total int
 		args  []any
@@ -42,16 +42,16 @@ func GetTags(ctx context.Context, conn *pgx.Conn, limit, offset int, nameFilter 
 	}
 
 	if nameFilter != "" {
-		if err := conn.QueryRow(ctx, queryCount, args[0]).Scan(&total); err != nil {
+		if err := pool.QueryRow(ctx, queryCount, args[0]).Scan(&total); err != nil {
 			return TagsResult{}, err
 		}
 	} else {
-		if err := conn.QueryRow(ctx, queryCount).Scan(&total); err != nil {
+		if err := pool.QueryRow(ctx, queryCount).Scan(&total); err != nil {
 			return TagsResult{}, err
 		}
 	}
 
-	rows, err := conn.Query(ctx, queryData, argsForData...)
+	rows, err := pool.Query(ctx, queryData, argsForData...)
 	if err != nil {
 		return TagsResult{}, err
 	}
