@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -163,6 +165,43 @@ func ParseUntilExisting(ctx context.Context, pool *pgxpool.Pool, pageSize int) e
 	return nil
 }
 
+func fetchMailReadersFromDir(dir string) ([]io.Reader, error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		log.Println("Failed to read directory:", err)
+		return nil, err
+	}
+	var readers []io.Reader
+	for _, f := range files {
+		if !f.IsDir() && strings.HasSuffix(f.Name(), internal.MIMEFileExtension) {
+			path := dir + "/" + f.Name()
+			src, err := os.Open(path)
+			if err != nil {
+				log.Printf("Failed to open %s: %v", path, err)
+				continue
+			}
+			readers = append(readers, src)
+		}
+	}
+	return readers, nil
+}
+
+func printMailSummary(subject string, newsItems []internal.NewsItem, updates []string) {
+	fmt.Println("Subject:", subject)
+	fmt.Println("--- WhatsNewTable ---")
+	for i, item := range newsItems {
+		fmt.Println("========================================")
+		fmt.Printf("%d.\n", i+1)
+		fmt.Printf("제목: %s\n", strings.TrimSpace(item.Title))
+		fmt.Printf("링크: %s\n", item.Link)
+		fmt.Printf("날짜: %s\n", item.Date)
+	}
+	fmt.Println("--- MainUpdates ---")
+	for _, u := range updates {
+		fmt.Println(u)
+	}
+}
+
 func main() {
 	cfg := internal.LoadConfig()
 	ctx := context.Background()
@@ -176,6 +215,31 @@ func main() {
 	defer ticker.Stop()
 
 	for {
+		var readers []io.Reader
+
+		if cfg.Mode == internal.ModeIMAP {
+			c, err := internal.ConnectIMAP(cfg)
+			if err != nil {
+				log.Printf("IMAP connection error: %v", err)
+				return
+			}
+			defer c.Logout()
+
+			readers, err = internal.FetchMailReadersFromIMAP(c)
+			if err != nil {
+				log.Printf("Failed to fetch mail: %v", err)
+				return
+			}
+
+		} else if cfg.Mode == internal.ModeTestdata {
+			readers, err = fetchMailReadersFromDir(cfg.TestdataDir)
+		}
+
+		for _, r := range readers {
+			newsItems, updates, subject := internal.ParseMail(r)
+			printMailSummary(subject, newsItems, updates)
+		}
+
 		if err := ParseUntilExisting(ctx, pool, 100); err != nil {
 			log.Printf("ParseUntilExisting 에러: %v", err)
 		}
