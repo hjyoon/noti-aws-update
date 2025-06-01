@@ -210,6 +210,57 @@ async function fetch_group(directory_id, tags_id) {
   console.log(`OK\n` + `tags_id: ${tags_id}\n` + `rows inserted: ${totalSize}`);
 }
 
+// async function isSourceIdExists(source_id) {
+//   const client = await getDbClientWithRetry(10);
+//   try {
+//     const { rowCount } = await client.query(
+//       "SELECT 1 FROM whatsnews WHERE source_id = $1 LIMIT 1",
+//       [source_id],
+//     );
+//     return rowCount > 0;
+//   } finally {
+//     client.release();
+//   }
+// }
+
+// async function fetch_until_existing(directory_id, tags_id) {
+//   let page = 0;
+//   const pageSize = BATCH_SIZE;
+//   let stop = false;
+
+//   while (!stop) {
+//     // API 호출
+//     const apiUrl = new URL(BASE_URL);
+//     apiUrl.searchParams.append("item.directoryId", directory_id);
+//     apiUrl.searchParams.append("tags.id", tags_id);
+//     apiUrl.searchParams.append("sort_by", "item.additionalFields.postDateTime");
+//     apiUrl.searchParams.append("sort_order", "desc");
+//     apiUrl.searchParams.append("size", "" + BATCH_SIZE);
+//     apiUrl.searchParams.append("page", "" + page);
+//     apiUrl.searchParams.append("item.locale", "en_US");
+
+//     const response = await fetchWithRetry(apiUrl);
+//     const data = await response.json();
+
+//     if (data.items.length === 0) break;
+
+//     for (const el of data.items) {
+//       const { item, tags } = el;
+//       // 이미 있다면 중단
+//       if (await isSourceIdExists(item.id)) {
+//         stop = true;
+//         break;
+//       }
+//       await transactionCustom(item, tags, 10);
+//     }
+
+//     if (stop || data.items.length < pageSize) break;
+//     page++;
+//   }
+
+//   console.log(`${directory_id},${tags_id}: 최신 데이터까지만 저장 완료`);
+// }
+
 const promises = [];
 
 const BASE_URL = "https://aws.amazon.com/api/dirs/items/search";
@@ -242,6 +293,7 @@ const groups = [
 
 for (const [directory_id, tags_id] of groups) {
   promises.push(fetch_group(directory_id, tags_id));
+  // promises.push(fetch_until_existing(directory_id, tags_id));
 }
 
 await Promise.all(promises);

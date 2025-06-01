@@ -14,19 +14,29 @@ case "$opt" in
   1)
     go mod tidy
     go build -o ./build/myapp ./cmd/httpserver
+    go build -o ./build/scheduler ./cmd/scheduler
+    ./build/scheduler &
+    SCHED_PID=$!
+    trap 'kill $SCHED_PID' INT TERM
     ./build/myapp
+    kill $SCHED_PID 2>/dev/null
     ;;
   2)
     docker-compose down
-    docker-compose --env-file ./.env up myapp pgadmin --build
+    docker-compose --env-file ./.env up myapp scheduler pgadmin --build
     ;;
   3)
     . ./.env
     PGPASSWORD="$DATABASE_PASSWORD" psql -h "$DATABASE_HOST" -U "$DATABASE_USER" -d "$DATABASE_DB" -f ./initdb/init.sql
     (cd collect/ && npm run start)
     go mod tidy
-    go build -o ./build/myapp
+    go build -o ./build/myapp ./cmd/httpserver
+    go build -o ./build/scheduler ./cmd/scheduler
+    ./build/scheduler &
+    SCHED_PID=$!
+    trap 'kill $SCHED_PID' INT TERM
     ./build/myapp
+    kill $SCHED_PID 2>/dev/null
     ;;
   4)
     docker-compose down -v

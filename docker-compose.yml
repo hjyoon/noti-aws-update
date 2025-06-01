@@ -4,10 +4,20 @@ services:
   myapp:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.httpserver
     container_name: myapp-container
     ports:
       - "8000:8000"
+    environment:
+      - DATABASE_HOST=db
+    depends_on:
+      - db
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    container_name: scheduler-container
     environment:
       - DATABASE_HOST=db
     depends_on:
