@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,8 +19,8 @@ import (
 )
 
 type AwsItem struct {
-	Id               string                 `json:"id"`
-	AdditionalFields map[string]interface{} `json:"additionalFields"`
+	Id               string         `json:"id"`
+	AdditionalFields map[string]any `json:"additionalFields"`
 }
 type AwsTag struct {
 	Name string `json:"name"`
@@ -202,6 +203,20 @@ func printMailSummary(subject string, newsItems []internal.NewsItem, updates []s
 	}
 }
 
+func SendToSlack(webhookURL, message string) error {
+	payload := map[string]string{"text": message}
+	body, _ := json.Marshal(payload)
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("non-200 response from Slack: %d", resp.StatusCode)
+	}
+	return nil
+}
+
 func main() {
 	cfg := internal.LoadConfig()
 	ctx := context.Background()
@@ -238,6 +253,22 @@ func main() {
 		for _, r := range readers {
 			newsItems, updates, subject := internal.ParseMail(r)
 			printMailSummary(subject, newsItems, updates)
+
+			var message strings.Builder
+			// message.WriteString(fmt.Sprintf("*%s*\n", subject))
+			// for _, item := range newsItems {
+			// 	message.WriteString(fmt.Sprintf("- %s (%s)\n%s\n", item.Title, item.Date, item.Link))
+			// }
+			if len(updates) > 0 {
+				message.WriteString("\nUpdates:\n" + strings.Join(updates, "\n"))
+			}
+
+			webhookURL := cfg.SlackWebHookUrl
+			if webhookURL != "" {
+				if err := SendToSlack(webhookURL, message.String()); err != nil {
+					log.Printf("Slack notify failed: %v", err)
+				}
+			}
 		}
 
 		if err := ParseUntilExisting(ctx, pool, 100); err != nil {

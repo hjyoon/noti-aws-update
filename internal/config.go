@@ -15,17 +15,18 @@ const (
 )
 
 type Config struct {
-	Mode         Mode
-	ImapServer   string
-	ImapUser     string
-	ImapPassword string
-	TestdataDir  string
-	DBUser       string
-	DBPassword   string
-	DBHost       string
-	DBPort       string
-	DBName       string
-	AppPort      string
+	Mode            Mode
+	ImapServer      string
+	ImapUser        string
+	ImapPassword    string
+	TestdataDir     string
+	DBUser          string
+	DBPassword      string
+	DBHost          string
+	DBPort          string
+	DBName          string
+	AppPort         string
+	SlackWebHookUrl string
 }
 
 const (
@@ -47,16 +48,17 @@ func LoadConfig() Config {
 		appPort = "8000" // 환경 변수 미설정 시 디폴트 포트번호 지정
 	}
 	return Config{
-		Mode:         ModeIMAP,
-		ImapServer:   os.Getenv("IMAP_SERVER"),
-		ImapUser:     os.Getenv("IMAP_USER"),
-		ImapPassword: os.Getenv("IMAP_PASSWORD"),
-		TestdataDir:  defaultTestdata,
-		DBUser:       os.Getenv("DATABASE_USER"),
-		DBPassword:   os.Getenv("DATABASE_PASSWORD"),
-		DBHost:       os.Getenv("DATABASE_HOST"),
-		DBPort:       os.Getenv("DATABASE_PORT"),
-		DBName:       os.Getenv("DATABASE_DB"),
-		AppPort:      appPort,
+		Mode:            ModeIMAP,
+		ImapServer:      os.Getenv("IMAP_SERVER"),
+		ImapUser:        os.Getenv("IMAP_USER"),
+		ImapPassword:    os.Getenv("IMAP_PASSWORD"),
+		TestdataDir:     defaultTestdata,
+		DBUser:          os.Getenv("DATABASE_USER"),
+		DBPassword:      os.Getenv("DATABASE_PASSWORD"),
+		DBHost:          os.Getenv("DATABASE_HOST"),
+		DBPort:          os.Getenv("DATABASE_PORT"),
+		DBName:          os.Getenv("DATABASE_DB"),
+		AppPort:         appPort,
+		SlackWebHookUrl: os.Getenv("SLACK_WEBHOOK_URL"),
 	}
 }
