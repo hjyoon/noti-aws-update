@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AWS 뉴스 목록</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Tailwind 4.1 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body class="h-full min-h-screen bg-gray-50 font-sans">
+    <div class="min-h-screen h-screen max-w-full">
+      <div class="flex h-full">
+        <!-- 반응형 사이드바(태그) : md 이상에서만 기본 노출 -->
+        <aside
+          id="sidebar"
+          class="hidden md:block sticky top-0 h-screen min-w-[320px] max-w-[400px] border-r border-gray-200 bg-[#f7f9fb] px-7 py-10 overflow-y-auto transition-transform duration-200 z-30"
+        >
+          <div class="space-y-5">
+            <div>
+              <label
+                for="tagSearch"
+                class="block text-sm font-medium text-gray-600 mb-1"
+                >태그 검색:</label
+              >
+              <div class="flex flex-nowrap items-center gap-2">
+                <input
+                  id="tagSearch"
+                  placeholder="태그명 입력"
+                  class="flex-1 rounded border border-blue-200 px-2 py-1 text-sm focus:ring-2 focus:ring-blue-300 min-w-0"
+                />
+                <button
+                  id="tagSearchBtn"
+                  class="flex-shrink-0 rounded bg-blue-50 px-3 py-1 border border-blue-200 text-blue-900 text-sm hover:bg-blue-100 min-w-[60px]"
+                >
+                  검색
+                </button>
+              </div>
+            </div>
+            <div
+              id="tagList"
+              class="tag-list flex flex-col gap-1 max-h-[500px] min-h-[280px] overflow-y-auto border border-blue-200 bg-[#f2f5fa] rounded-lg p-2"
+            ></div>
+            <div class="flex items-center gap-2 text-xs">
+              <button
+                id="tagPrevBtn"
+                class="rounded border border-gray-300 px-2 py-1 hover:bg-gray-100"
+              >
+                이전
+              </button>
+              <span id="tagPageInfo"></span>
+              <button
+                id="tagNextBtn"
+                class="rounded border border-gray-300 px-2 py-1 hover:bg-gray-100"
+              >
+                다음
+              </button>
+            </div>
+            <div class="mt-2 text-sm">
+              <span class="text-gray-500">선택한 태그:</span>
+              <div id="selectedTags" class="mt-2 flex flex-wrap gap-2"></div>
+            </div>
+          </div>
+          <!-- 모바일용 닫기 버튼 -->
+          <button
+            id="sidebarCloseBtn"
+            class="block md:hidden absolute top-2 right-2 text-3xl text-gray-400 hover:text-gray-700"
+          >
+            &times;
+          </button>
+        </aside>
+        <!-- Overlay(모바일용 사이드바 열기 시 배경 어둡게) -->
+        <div
+          id="sidebarOverlay"
+          class="fixed inset-0 bg-black/30 z-20 hidden md:hidden"
+        ></div>
+        <!-- Main Content -->
+        <main
+          id="mainScrollArea"
+          class="relative flex-1 h-screen overflow-y-auto bg-white"
+        >
+          <!-- 상단바: 햄버거 버튼(모바일), 제목, 검색, 카운트 -->
+          <div
+            id="topbar"
+            class="sticky top-0 z-10 flex flex-wrap items-center gap-x-6 gap-y-3 min-h-[65px] bg-[#f9fbfe] border-b border-gray-200 px-6 py-4"
+          >
+            <!-- 햄버거 버튼 (md 미만에서만 보임) -->
+            <button
+              id="sidebarOpenBtn"
+              class="md:hidden mr-2 px-2 py-1 text-2xl text-blue-800 hover:text-blue-600 focus:outline-none"
+              aria-label="태그 메뉴 열기"
+            >
+              &#9776;
+            </button>
+            <div class="text-xl font-bold">AWS What's New 뉴스</div>
+            <div class="flex items-center gap-2 flex-1 min-w-[120px] max-w-md">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="제목/내용 검색"
+                class="w-full rounded border border-blue-200 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300"
+              />
+              <button
+                id="searchBtn"
+                class="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900 text-sm hover:bg-blue-100 min-w-[60px]"
+              >
+                검색
+              </button>
+            </div>
+            <div
+              class="topbar-count text-blue-900 font-semibold text-base"
+              id="newsCount"
+            ></div>
+          </div>
+          <!-- 카드 리스트: 화면 크기별 자동 갯수 -->
+          <div
+            id="cardList"
+            class="card-list grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-6 px-3 md:px-6 py-8"
+          ></div>
+          <div
+            id="loading"
+            class="loading-indicator text-center text-gray-400 py-7 text-base"
+            style="display: none"
+          >
+            로딩중...
+          </div>
+        </main>
+      </div>
+    </div>
+    <!-- 분리된 JS 파일 -->
+    <script src="/static/main.js"></script>
+  </body>
+</html>
