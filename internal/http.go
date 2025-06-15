@@ -102,7 +102,9 @@ func StartHTTPServer(pool *pgxpool.Pool, port string) {
 			}
 		}
 
-		result, err := GetWhatsnews(r.Context(), pool, limit, offset, tagIDs)
+		search := r.URL.Query().Get("search")
+
+		result, err := GetWhatsnews(r.Context(), pool, limit, offset, tagIDs, search)
 		if err != nil {
 			http.Error(w, "DB error: "+err.Error(), http.StatusInternalServerError)
 			return

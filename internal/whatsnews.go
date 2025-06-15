@@ -3,6 +3,8 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,30 +28,56 @@ type WhatsNewsResult struct {
 	TotalPage int         `json:"total_page"`
 }
 
-func GetWhatsnews(ctx context.Context, pool *pgxpool.Pool, limit, offset int, tagIDs []int) (WhatsNewsResult, error) {
-	var (
-		total int
-	)
+func GetWhatsnews(ctx context.Context, pool *pgxpool.Pool, limit, offset int, tagIDs []int, search string) (WhatsNewsResult, error) {
+	var total int
 
-	var (
-		queryCount string
-		queryData  string
-		argsCount  []any
-		argsData   []any
-	)
+	where := []string{}
+	args := []any{}
+	argn := 1 // SQL $1부터
 
+	// tagIDs 조건
 	if len(tagIDs) > 0 {
-		queryCount = `
+		where = append(where, "wnt.tag_id = ANY($"+strconv.Itoa(argn)+")")
+		args = append(args, tagIDs)
+		argn++
+	}
+	// search(부분검색: title OR content)
+	if search != "" {
+		where = append(where, "(wn.title ILIKE $"+strconv.Itoa(argn)+" OR wn.content ILIKE $"+strconv.Itoa(argn)+")")
+		args = append(args, "%"+search+"%")
+		argn++
+	}
+	whereSQL := ""
+	if len(where) > 0 {
+		whereSQL = "WHERE " + strings.Join(where, " AND ")
+	}
+
+	// HAVING
+	havingSQL := ""
+	if len(tagIDs) > 0 {
+		havingSQL = "\nHAVING COUNT(DISTINCT wnt.tag_id) = $" + strconv.Itoa(argn)
+		args = append(args, len(tagIDs))
+		argn++
+	}
+	limitParam := argn
+	offsetParam := argn + 1
+	args = append(args, limit, offset)
+
+	queryCount := `
 SELECT COUNT(*) FROM (
   SELECT wn.id
   FROM whatsnews wn
-  JOIN whatsnews_tags wnt ON wn.id = wnt.whatsnew_id
-  WHERE wnt.tag_id = ANY($1)
+  LEFT JOIN whatsnews_tags wnt ON wn.id = wnt.whatsnew_id
+  ` + whereSQL + `
   GROUP BY wn.id
-  HAVING COUNT(DISTINCT wnt.tag_id) = $2
+  ` + havingSQL + `
 ) sub
 `
-		queryData = `
+	if err := pool.QueryRow(ctx, queryCount, args[:argn-1]...).Scan(&total); err != nil {
+		return WhatsNewsResult{}, err
+	}
+
+	queryData := `
 SELECT wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at,
   COALESCE(
     json_agg(tag_obj ORDER BY tag_obj->>'name') FILTER (WHERE tag_obj IS NOT NULL), '[]'
@@ -57,12 +85,12 @@ SELECT wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at,
 FROM (
     SELECT wn.id
     FROM whatsnews wn
-    JOIN whatsnews_tags wnt ON wn.id = wnt.whatsnew_id
-    WHERE wnt.tag_id = ANY($1)
+    LEFT JOIN whatsnews_tags wnt ON wn.id = wnt.whatsnew_id
+    ` + whereSQL + `
     GROUP BY wn.id
-    HAVING COUNT(DISTINCT wnt.tag_id) = $2
+    ` + havingSQL + `
     ORDER BY MAX(wn.source_created_at) DESC, wn.title
-    LIMIT $3 OFFSET $4
+    LIMIT $` + strconv.Itoa(limitParam) + ` OFFSET $` + strconv.Itoa(offsetParam) + `
 ) filtered
 JOIN whatsnews wn ON wn.id = filtered.id
 LEFT JOIN (
@@ -73,36 +101,7 @@ LEFT JOIN (
 GROUP BY wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at
 ORDER BY wn.source_created_at DESC, wn.title
 `
-
-		argsCount = []any{tagIDs, len(tagIDs)}
-		argsData = []any{tagIDs, len(tagIDs), limit, offset}
-	} else {
-		queryCount = `SELECT COUNT(*) FROM whatsnews`
-
-		queryData = `
-SELECT wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at,
-  COALESCE(
-    json_agg(tag_obj ORDER BY tag_obj->>'name') FILTER (WHERE tag_obj IS NOT NULL), '[]'
-  ) AS tags
-FROM whatsnews wn
-LEFT JOIN (
-    SELECT wnt2.whatsnew_id, jsonb_build_object('id', t2.id, 'name', t2.name) AS tag_obj
-    FROM whatsnews_tags wnt2
-    JOIN tags t2 ON t2.id = wnt2.tag_id
-) tag_objs ON wn.id = tag_objs.whatsnew_id
-GROUP BY wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at
-ORDER BY wn.source_created_at DESC, wn.title
-LIMIT $1 OFFSET $2
-`
-		argsCount = []any{}
-		argsData = []any{limit, offset}
-	}
-
-	if err := pool.QueryRow(ctx, queryCount, argsCount...).Scan(&total); err != nil {
-		return WhatsNewsResult{}, err
-	}
-
-	rows, err := pool.Query(ctx, queryData, argsData...)
+	rows, err := pool.Query(ctx, queryData, args...)
 	if err != nil {
 		return WhatsNewsResult{}, err
 	}
