@@ -29,28 +29,27 @@ type WhatsNewsResult struct {
 func GetWhatsnews(ctx context.Context, pool *pgxpool.Pool, limit, offset int, tagIDs []int) (WhatsNewsResult, error) {
 	var (
 		total int
-		args  []any
 	)
-	filterWhere := ""
-	filterHaving := ""
+
+	var (
+		queryCount string
+		queryData  string
+		argsCount  []any
+		argsData   []any
+	)
 
 	if len(tagIDs) > 0 {
-		filterWhere = "WHERE wnt.tag_id = ANY($1)"
-		filterHaving = "HAVING COUNT(DISTINCT wnt.tag_id) = $2"
-		args = append(args, tagIDs, len(tagIDs))
-	}
-	queryCount := `
+		queryCount = `
 SELECT COUNT(*) FROM (
   SELECT wn.id
   FROM whatsnews wn
   JOIN whatsnews_tags wnt ON wn.id = wnt.whatsnew_id
-  ` + filterWhere + `
+  WHERE wnt.tag_id = ANY($1)
   GROUP BY wn.id
-  ` + filterHaving + `
+  HAVING COUNT(DISTINCT wnt.tag_id) = $2
 ) sub
 `
-
-	queryData := `
+		queryData = `
 SELECT wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at,
   COALESCE(
     json_agg(tag_obj ORDER BY tag_obj->>'name') FILTER (WHERE tag_obj IS NOT NULL), '[]'
@@ -59,9 +58,9 @@ FROM (
     SELECT wn.id
     FROM whatsnews wn
     JOIN whatsnews_tags wnt ON wn.id = wnt.whatsnew_id
-    ` + filterWhere + `
+    WHERE wnt.tag_id = ANY($1)
     GROUP BY wn.id
-    ` + filterHaving + `
+    HAVING COUNT(DISTINCT wnt.tag_id) = $2
     ORDER BY MAX(wn.source_created_at) DESC, wn.title
     LIMIT $3 OFFSET $4
 ) filtered
@@ -74,14 +73,36 @@ LEFT JOIN (
 GROUP BY wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at
 ORDER BY wn.source_created_at DESC, wn.title
 `
-	argsForData := append(args, limit, offset)
-	argsForCount := args
 
-	if err := pool.QueryRow(ctx, queryCount, argsForCount...).Scan(&total); err != nil {
+		argsCount = []any{tagIDs, len(tagIDs)}
+		argsData = []any{tagIDs, len(tagIDs), limit, offset}
+	} else {
+		queryCount = `SELECT COUNT(*) FROM whatsnews`
+
+		queryData = `
+SELECT wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at,
+  COALESCE(
+    json_agg(tag_obj ORDER BY tag_obj->>'name') FILTER (WHERE tag_obj IS NOT NULL), '[]'
+  ) AS tags
+FROM whatsnews wn
+LEFT JOIN (
+    SELECT wnt2.whatsnew_id, jsonb_build_object('id', t2.id, 'name', t2.name) AS tag_obj
+    FROM whatsnews_tags wnt2
+    JOIN tags t2 ON t2.id = wnt2.tag_id
+) tag_objs ON wn.id = tag_objs.whatsnew_id
+GROUP BY wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at
+ORDER BY wn.source_created_at DESC, wn.title
+LIMIT $1 OFFSET $2
+`
+		argsCount = []any{}
+		argsData = []any{limit, offset}
+	}
+
+	if err := pool.QueryRow(ctx, queryCount, argsCount...).Scan(&total); err != nil {
 		return WhatsNewsResult{}, err
 	}
 
-	rows, err := pool.Query(ctx, queryData, argsForData...)
+	rows, err := pool.Query(ctx, queryData, argsData...)
 	if err != nil {
 		return WhatsNewsResult{}, err
 	}

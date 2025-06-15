@@ -21,37 +21,31 @@ type TagsResult struct {
 
 func GetTags(ctx context.Context, pool *pgxpool.Pool, limit, offset int, nameFilter string) (TagsResult, error) {
 	var (
-		total int
-		args  []any
+		total      int
+		queryCount string
+		queryData  string
+		argsCount  []any
+		argsData   []any
 	)
-	queryCount := `SELECT COUNT(*) FROM tags`
-	queryData := `SELECT id, name FROM tags`
-	where := ""
-	if nameFilter != "" {
-		where = " WHERE name ILIKE $1"
-		args = append(args, "%"+nameFilter+"%")
-	}
-	queryCount += where
-	queryData += where + ` ORDER BY name LIMIT $2 OFFSET $3`
 
-	argsForData := args
 	if nameFilter != "" {
-		argsForData = append(argsForData, limit, offset)
+		queryCount = `SELECT COUNT(*) FROM tags WHERE name ILIKE $1`
+		queryData = `SELECT id, name FROM tags WHERE name ILIKE $1 ORDER BY name LIMIT $2 OFFSET $3`
+		likeName := "%" + nameFilter + "%"
+		argsCount = []any{likeName}
+		argsData = []any{likeName, limit, offset}
 	} else {
-		argsForData = append(argsForData, limit, offset)
+		queryCount = `SELECT COUNT(*) FROM tags`
+		queryData = `SELECT id, name FROM tags ORDER BY name LIMIT $1 OFFSET $2`
+		argsCount = []any{}
+		argsData = []any{limit, offset}
 	}
 
-	if nameFilter != "" {
-		if err := pool.QueryRow(ctx, queryCount, args[0]).Scan(&total); err != nil {
-			return TagsResult{}, err
-		}
-	} else {
-		if err := pool.QueryRow(ctx, queryCount).Scan(&total); err != nil {
-			return TagsResult{}, err
-		}
+	if err := pool.QueryRow(ctx, queryCount, argsCount...).Scan(&total); err != nil {
+		return TagsResult{}, err
 	}
 
-	rows, err := pool.Query(ctx, queryData, argsForData...)
+	rows, err := pool.Query(ctx, queryData, argsData...)
 	if err != nil {
 		return TagsResult{}, err
 	}
