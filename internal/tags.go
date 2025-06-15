@@ -6,8 +6,9 @@ import (
 )
 
 type Tag struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
+	Id        int    `json:"id"`
+	Name      string `json:"name"`
+	NewsCount int    `json:"news_count"`
 }
 
 type TagsResult struct {
@@ -30,13 +31,28 @@ func GetTags(ctx context.Context, pool *pgxpool.Pool, limit, offset int, nameFil
 
 	if nameFilter != "" {
 		queryCount = `SELECT COUNT(*) FROM tags WHERE name ILIKE $1`
-		queryData = `SELECT id, name FROM tags WHERE name ILIKE $1 ORDER BY name LIMIT $2 OFFSET $3`
+		queryData = `
+            SELECT tags.id, tags.name, COUNT(wnt.whatsnew_id) as news_count
+            FROM tags
+            LEFT JOIN whatsnews_tags wnt ON tags.id = wnt.tag_id
+            WHERE tags.name ILIKE $1
+            GROUP BY tags.id, tags.name
+            ORDER BY news_count DESC, tags.name
+            LIMIT $2 OFFSET $3
+        `
 		likeName := "%" + nameFilter + "%"
 		argsCount = []any{likeName}
 		argsData = []any{likeName, limit, offset}
 	} else {
 		queryCount = `SELECT COUNT(*) FROM tags`
-		queryData = `SELECT id, name FROM tags ORDER BY name LIMIT $1 OFFSET $2`
+		queryData = `
+            SELECT tags.id, tags.name, COUNT(wnt.whatsnew_id) as news_count
+            FROM tags
+            LEFT JOIN whatsnews_tags wnt ON tags.id = wnt.tag_id
+            GROUP BY tags.id, tags.name
+            ORDER BY news_count DESC, tags.name
+            LIMIT $1 OFFSET $2
+        `
 		argsCount = []any{}
 		argsData = []any{limit, offset}
 	}
@@ -54,7 +70,7 @@ func GetTags(ctx context.Context, pool *pgxpool.Pool, limit, offset int, nameFil
 	tags := []Tag{}
 	for rows.Next() {
 		var t Tag
-		if err := rows.Scan(&t.Id, &t.Name); err != nil {
+		if err := rows.Scan(&t.Id, &t.Name, &t.NewsCount); err != nil {
 			return TagsResult{}, err
 		}
 		tags = append(tags, t)
