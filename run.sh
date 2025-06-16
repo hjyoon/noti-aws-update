@@ -23,7 +23,7 @@ case "$opt" in
     ;;
   2)
     docker-compose down
-    docker-compose --env-file ./.env up myapp scheduler pgadmin --build
+    docker-compose --env-file ./.env up --build myapp scheduler pgadmin
     ;;
   3)
     . ./.env
