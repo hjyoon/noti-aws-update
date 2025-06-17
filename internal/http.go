@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -142,6 +143,34 @@ func (w *CustomResponseWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
+func getRealIP(r *http.Request) string {
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		ips := strings.Split(xff, ",")
+		if len(ips) > 0 {
+			return strings.TrimSpace(ips[0])
+		}
+	}
+	fwd := r.Header.Get("Forwarded")
+	if fwd != "" {
+		for _, field := range strings.Split(fwd, ";") {
+			field = strings.TrimSpace(field)
+			if strings.HasPrefix(field, "for=") {
+				ip := strings.TrimPrefix(field, "for=")
+				ip = strings.Trim(ip, "\"")
+				if ip != "" {
+					return ip
+				}
+			}
+		}
+	}
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return ip
+	}
+	return r.RemoteAddr
+}
+
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -154,9 +183,10 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		if r.URL.RawQuery != "" {
 			query = "?" + r.URL.RawQuery
 		}
+		ip := getRealIP(r)
 		log.Printf(
 			"[%s] \"%s %s%s\" %d \"%s\" (duration: %s)",
-			r.RemoteAddr,
+			ip,
 			r.Method,
 			r.URL.Path,
 			query,
