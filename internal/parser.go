@@ -141,9 +141,9 @@ func extractWhatsNewTable(body string) []NewsItem {
 
 		if date != "" {
 			items = append(items, NewsItem{
-				Title: m[1],
-				Link:  m[2],
-				Date:  date,
+				Title: strings.TrimSpace(m[1]),
+				Link:  strings.TrimSpace(m[2]),
+				Date:  strings.TrimSpace(date),
 			})
 		}
 

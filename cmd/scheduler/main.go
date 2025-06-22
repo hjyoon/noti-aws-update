@@ -226,7 +226,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	ticker := time.NewTicker(24 * time.Hour)
+	ticker := time.NewTicker(3 * time.Hour)
 	defer ticker.Stop()
 
 	for {
@@ -236,15 +236,18 @@ func main() {
 			c, err := internal.ConnectIMAP(cfg)
 			if err != nil {
 				log.Printf("IMAP connection error: %v", err)
-				return
+				<-ticker.C
+				continue
 			}
-			defer c.Logout()
 
 			readers, err = internal.FetchMailReadersFromIMAP(c)
 			if err != nil {
 				log.Printf("Failed to fetch mail: %v", err)
-				return
+				c.Logout()
+				<-ticker.C
+				continue
 			}
+			c.Logout()
 
 		} else if cfg.Mode == internal.ModeTestdata {
 			readers, err = fetchMailReadersFromDir(cfg.TestdataDir)

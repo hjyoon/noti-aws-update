@@ -3,7 +3,6 @@
 *.dll
 *.so
 *.dylib
-*.test
 *.out
 
 *.cover
@@ -34,3 +33,5 @@ go.work.sum
 *.code-workspace
 
 /collect/node_modules
+
+coverage.html
