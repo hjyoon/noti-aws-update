@@ -7,17 +7,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
     <style>
+      /* ───────────── 공통 ───────────── */
       :root {
         --sb-padding-y: 2.5rem;
         --sb-padding-x: 1.75rem;
       }
 
+      /* ───────────── 사이드바 ───────────── */
       #sidebar {
         padding: var(--sb-padding-y) var(--sb-padding-x);
         transition:
           width 0.2s,
           padding 0.2s;
-        overflow-y: auto; /* 세로만 스크롤 */
+        overflow-y: auto; /* 세로 스크롤 */
         overflow-x: hidden; /* 가로 스크롤 방지 */
       }
       #sidebar.closed {
@@ -25,13 +27,10 @@
         padding: 0 !important;
         overflow: hidden !important;
       }
-
-      /* 내부 요소가 폭을 넘으면 줄 바꿈 */
       #sidebar * {
         max-width: 100%;
         word-break: break-word;
       }
-
       @media (min-width: 768px) {
         #sidebar {
           width: 280px;
@@ -52,11 +51,42 @@
           width: 400px;
         }
       }
+
+      /* ───────────── Masonry 카드 영역 ───────────── */
+      #cardList {
+        column-gap: 1rem; /* 카드 간 좌우 간격 */
+        column-count: 1; /* 기본 한 열 */
+      }
+      @media (min-width: 640px) {
+        #cardList {
+          column-count: 2;
+        }
+      }
+      @media (min-width: 1024px) {
+        #cardList {
+          column-count: 3;
+        }
+      }
+      @media (min-width: 1280px) {
+        #cardList {
+          column-count: 4;
+        }
+      }
+      @media (min-width: 1536px) {
+        #cardList {
+          column-count: 5;
+        }
+      }
+
+      .news-card {
+        break-inside: avoid; /* 열 내부에서 끊김 방지 */
+        margin-bottom: 1.5rem; /* 카드 간 상하 간격 */
+      }
     </style>
   </head>
 
   <body class="h-full min-h-screen bg-gray-50 font-sans">
-    <!-- 상단 네비게이션 -->
+    <!-- ▽ 상단 네비게이션 바 -->
     <header
       id="topbar"
       class="fixed inset-x-0 top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-3 min-h-[65px] bg-[#f9fbfe] border-b border-gray-200 px-4 sm:px-6 py-4"
@@ -70,6 +100,7 @@
       <h1 class="text-lg sm:text-xl font-bold whitespace-nowrap">
         AWS What's New 뉴스
       </h1>
+
       <div class="flex items-center gap-2 flex-1 min-w-[120px] max-w-md">
         <input
           id="searchInput"
@@ -83,12 +114,13 @@
           검색
         </button>
       </div>
+
       <div id="newsCount" class="text-blue-900 font-semibold text-base"></div>
     </header>
 
-    <!-- 본문 -->
+    <!-- ▽ 본문 영역 -->
     <div class="pt-[65px] h-screen flex">
-      <!-- ▽ 사이드바 -->
+      <!-- ▼ 사이드바 -->
       <aside
         id="sidebar"
         class="hidden md:block sticky top-0 h-[calc(100vh-65px)] border-r border-gray-200 bg-[#f7f9fb] z-30"
@@ -101,7 +133,7 @@
         </button>
 
         <div class="space-y-5">
-          <!-- 태그 검색 행 (flex-wrap 적용) -->
+          <!-- 태그 검색 -->
           <div>
             <label
               for="tagSearch"
@@ -123,12 +155,13 @@
             </div>
           </div>
 
-          <!-- 태그 리스트 등 아래 동일 -->
+          <!-- 태그 리스트 -->
           <div
             id="tagList"
             class="flex flex-col gap-1 max-h-[500px] min-h-[280px] overflow-y-auto border border-blue-200 bg-[#f2f5fa] rounded-lg p-2"
           ></div>
 
+          <!-- 페이지네이션 -->
           <div class="flex items-center gap-2 text-xs">
             <button
               id="tagPrevBtn"
@@ -145,12 +178,14 @@
             </button>
           </div>
 
+          <!-- 선택된 태그 -->
           <div class="mt-2 text-sm">
             <span class="text-gray-500">선택한 태그:</span>
             <div id="selectedTags" class="mt-2 flex flex-wrap gap-2"></div>
           </div>
         </div>
 
+        <!-- 모바일 전용 닫기 버튼 / 리사이즈 핸들 -->
         <button
           id="sidebarCloseBtn"
           class="block md:hidden absolute top-2 right-2 text-3xl text-gray-400 hover:text-gray-700"
@@ -163,20 +198,18 @@
         ></div>
       </aside>
 
+      <!-- 모바일 오버레이 -->
       <div
         id="sidebarOverlay"
         class="fixed inset-0 bg-black/30 z-20 hidden md:hidden"
       ></div>
 
-      <!-- ▽ 카드 영역 -->
+      <!-- ▼ 카드 목록 -->
       <main
         id="mainScrollArea"
         class="flex-1 h-[calc(100vh-65px)] overflow-y-auto bg-white"
       >
-        <div
-          id="cardList"
-          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-6 px-3 sm:px-4 md:px-6 py-8"
-        ></div>
+        <div id="cardList" class="px-3 sm:px-4 md:px-6 py-8"></div>
         <div
           id="loading"
           class="text-center text-gray-400 py-7 text-base"
