@@ -40,7 +40,8 @@ case "$opt" in
     ;;
   4)
     docker-compose down -v
-    docker-compose --env-file ./.env up --build
+    docker-compose --env-file ./.env up --build --exit-code-from myinit myinit
+    docker-compose --env-file ./.env up --build myapp scheduler pgadmin
     ;;
   *)
     echo "올바른 번호를 선택하세요."
