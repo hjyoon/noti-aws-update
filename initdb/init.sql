@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS whatsnews_tags (
 CREATE INDEX IF NOT EXISTS idx_whatsnews_source_created_at ON whatsnews (source_created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_whatsnews_tags_tag_id ON whatsnews_tags (tag_id);
+CREATE INDEX IF NOT EXISTS idx_whatsnews_tags_whatsnew_id ON whatsnews_tags (whatsnew_id);
+CREATE INDEX IF NOT EXISTS idx_whatsnews_tags_tag_whatsnew ON whatsnews_tags (tag_id, whatsnew_id);
 
 CREATE INDEX IF NOT EXISTS idx_tags_name_trgm ON tags USING gin (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_whatsnews_title_trgm ON whatsnews USING gin (title gin_trgm_ops);
