@@ -1,0 +1,15 @@
+FROM docker.io/library/postgres:16-alpine
+
+ARG PG_CRON_VERSION=v1.6.5
+
+RUN apk add --no-cache --virtual .build-deps \
+      git gcc g++ make musl-dev postgresql-dev \
+      clang19 llvm19
+
+RUN git clone --depth 1 --branch ${PG_CRON_VERSION} \
+      https://github.com/citusdata/pg_cron /tmp/pg_cron \
+ && cd /tmp/pg_cron && make && make install \
+ && rm -rf /tmp/pg_cron && apk del .build-deps
+
+RUN echo "shared_preload_libraries = 'pg_cron'" >> /usr/local/share/postgresql/postgresql.conf.sample \
+ && echo "cron.database_name = 'appdb'"         >> /usr/local/share/postgresql/postgresql.conf.sample

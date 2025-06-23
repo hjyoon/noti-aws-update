@@ -20,77 +20,58 @@ type TagsResult struct {
 	TotalPage int   `json:"total_page"`
 }
 
-func GetTags(ctx context.Context, pool *pgxpool.Pool, limit, offset int, nameFilter string) (TagsResult, error) {
-	var (
-		total      int
-		queryCount string
-		queryData  string
-		argsCount  []any
-		argsData   []any
-	)
+func GetTags(ctx context.Context, pool *pgxpool.Pool,
+	limit, offset int, nameFilter string) (TagsResult, error) {
 
+	const q = `
+SELECT t.id,
+       t.name,
+       COALESCE(s.news_cnt, 0)        AS news_cnt,
+       COUNT(*) OVER()                AS total_rows
+FROM   tags        AS t
+LEFT   JOIN tag_stats AS s ON s.tag_id = t.id
+WHERE  ($1 = '' OR t.name ILIKE $1)
+ORDER  BY news_cnt DESC, t.name
+LIMIT  $2 OFFSET $3;
+`
+
+	like := "%"
 	if nameFilter != "" {
-		queryCount = `SELECT COUNT(*) FROM tags WHERE name ILIKE $1`
-		queryData = `
-            SELECT tags.id, tags.name, COUNT(wnt.whatsnew_id) as news_count
-            FROM tags
-            LEFT JOIN whatsnews_tags wnt ON tags.id = wnt.tag_id
-            WHERE tags.name ILIKE $1
-            GROUP BY tags.id, tags.name
-            ORDER BY news_count DESC, tags.name
-            LIMIT $2 OFFSET $3
-        `
-		likeName := "%" + nameFilter + "%"
-		argsCount = []any{likeName}
-		argsData = []any{likeName, limit, offset}
-	} else {
-		queryCount = `SELECT COUNT(*) FROM tags`
-		queryData = `
-            SELECT tags.id, tags.name, COUNT(wnt.whatsnew_id) as news_count
-            FROM tags
-            LEFT JOIN whatsnews_tags wnt ON tags.id = wnt.tag_id
-            GROUP BY tags.id, tags.name
-            ORDER BY news_count DESC, tags.name
-            LIMIT $1 OFFSET $2
-        `
-		argsCount = []any{}
-		argsData = []any{limit, offset}
+		like = "%" + nameFilter + "%"
 	}
 
-	if err := pool.QueryRow(ctx, queryCount, argsCount...).Scan(&total); err != nil {
-		return TagsResult{}, err
-	}
-
-	rows, err := pool.Query(ctx, queryData, argsData...)
+	rows, err := pool.Query(ctx, q, like, limit, offset)
 	if err != nil {
 		return TagsResult{}, err
 	}
 	defer rows.Close()
 
-	tags := []Tag{}
+	res := TagsResult{
+		Limit:  limit,
+		Offset: offset,
+		Page:   1,
+	}
+
 	for rows.Next() {
-		var t Tag
-		if err := rows.Scan(&t.Id, &t.Name, &t.NewsCount); err != nil {
+		var (
+			t         Tag
+			totalRows int
+		)
+		if err := rows.Scan(&t.Id, &t.Name, &t.NewsCount, &totalRows); err != nil {
 			return TagsResult{}, err
 		}
-		tags = append(tags, t)
+		if res.Total == 0 { // 첫 행에서 totalRows 확보
+			res.Total = totalRows
+		}
+		res.Items = append(res.Items, t)
 	}
 
-	page := 1
-	if limit > 0 {
-		page = offset/limit + 1
-	}
-	totalPage := 1
-	if limit > 0 {
-		totalPage = (total + limit - 1) / limit
+	if res.Total > 0 && res.Limit > 0 {
+		res.Page = res.Offset/res.Limit + 1
+		res.TotalPage = (res.Total + res.Limit - 1) / res.Limit
+	} else {
+		res.TotalPage = 1
 	}
 
-	return TagsResult{
-		Items:     tags,
-		Total:     total,
-		Limit:     limit,
-		Offset:    offset,
-		Page:      page,
-		TotalPage: totalPage,
-	}, rows.Err()
+	return res, rows.Err()
 }

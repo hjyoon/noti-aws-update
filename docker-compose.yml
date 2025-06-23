@@ -24,7 +24,9 @@ services:
       - db
 
   db:
-    image: docker.io/library/postgres:16-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.pg16-cron
     container_name: myapp-postgres
     environment:
       - POSTGRES_DB=${DATABASE_DB}
