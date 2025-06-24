@@ -28,80 +28,151 @@ type WhatsNewsResult struct {
 	TotalPage int         `json:"total_page"`
 }
 
-func GetWhatsnews(ctx context.Context, pool *pgxpool.Pool, limit, offset int, tagIDs []int, search string) (WhatsNewsResult, error) {
-	var total int
+func GetWhatsnews(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	limit, offset int,
+	tagIDs []int,
+	search string,
+) (WhatsNewsResult, error) {
 
-	where := []string{}
-	args := []any{}
-	argn := 1 // SQL $1부터
-
-	// tagIDs 조건
-	if len(tagIDs) > 0 {
-		where = append(where, "wnt.tag_id = ANY($"+strconv.Itoa(argn)+")")
-		args = append(args, tagIDs)
-		argn++
+	if limit <= 0 {
+		limit = 30
 	}
-	// search(부분검색: title OR content)
-	if search != "" {
-		where = append(where, "(wn.title ILIKE $"+strconv.Itoa(argn)+" OR wn.content ILIKE $"+strconv.Itoa(argn)+")")
+	if offset < 0 {
+		offset = 0
+	}
+
+	var (
+		conds   []string
+		args    []any
+		paramNo = 1
+	)
+
+	// 검색어
+	if strings.TrimSpace(search) != "" {
+		conds = append(
+			conds,
+			"(wn.title ILIKE $"+strconv.Itoa(paramNo)+" OR wn.content ILIKE $"+strconv.Itoa(paramNo)+")",
+		)
 		args = append(args, "%"+search+"%")
-		argn++
-	}
-	whereSQL := ""
-	if len(where) > 0 {
-		whereSQL = "WHERE " + strings.Join(where, " AND ")
+		paramNo++
 	}
 
-	// HAVING
-	havingSQL := ""
-	if len(tagIDs) > 0 {
-		havingSQL = "\nHAVING COUNT(DISTINCT wnt.tag_id) = $" + strconv.Itoa(argn)
-		args = append(args, len(tagIDs))
-		argn++
+	// 태그 배열
+	hasTags := len(tagIDs) > 0
+	tagParamNo := 0
+	if hasTags {
+		tagParamNo = paramNo
+		args = append(args, tagIDs) // $tagParamNo
+		paramNo++
 	}
-	limitParam := argn
-	offsetParam := argn + 1
+
+	buildWhere := func(extra string) string {
+		all := make([]string, len(conds))
+		copy(all, conds)
+		if extra != "" {
+			all = append(all, extra)
+		}
+		if len(all) == 0 {
+			return ""
+		}
+		return "WHERE " + strings.Join(all, " AND ")
+	}
+
+	var (
+		countSQL string
+		dataSQL  string
+	)
+
+	limitParam := paramNo
+	offsetParam := paramNo + 1
 	args = append(args, limit, offset)
 
-	queryCount := `
-SELECT COUNT(*) FROM (
-  SELECT wn.id
-  FROM whatsnews wn
-  LEFT JOIN whatsnews_tags wnt ON wn.id = wnt.whatsnew_id
-  ` + whereSQL + `
-  GROUP BY wn.id
-  ` + havingSQL + `
-) sub
+	if hasTags {
+		candidateCond := "wn.id IN (SELECT whatsnew_id FROM candidates)"
+
+		countSQL = `
+WITH wanted AS (
+  SELECT unnest($` + strconv.Itoa(tagParamNo) + `::int[]) AS tag_id
+), candidates AS (
+  SELECT wnt.whatsnew_id
+  FROM   whatsnews_tags wnt
+  JOIN   wanted w ON w.tag_id = wnt.tag_id
+  GROUP  BY wnt.whatsnew_id
+  HAVING COUNT(DISTINCT w.tag_id) = (SELECT COUNT(*) FROM wanted)
+)
+SELECT COUNT(*)
+FROM   whatsnews wn
+` + buildWhere(candidateCond) + `;
 `
-	if err := pool.QueryRow(ctx, queryCount, args[:argn-1]...).Scan(&total); err != nil {
+
+		dataSQL = `
+WITH wanted AS (
+  SELECT unnest($` + strconv.Itoa(tagParamNo) + `::int[]) AS tag_id
+), candidates AS (
+  SELECT wnt.whatsnew_id
+  FROM   whatsnews_tags wnt
+  JOIN   wanted w ON w.tag_id = wnt.tag_id
+  GROUP  BY wnt.whatsnew_id
+  HAVING COUNT(DISTINCT w.tag_id) = (SELECT COUNT(*) FROM wanted)
+), filtered AS (
+  SELECT  wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at
+  FROM    whatsnews wn
+  ` + buildWhere(candidateCond) + `
+  ORDER BY wn.source_created_at DESC, wn.id
+  LIMIT   $` + strconv.Itoa(limitParam) + ` OFFSET $` + strconv.Itoa(offsetParam) + `
+)
+SELECT f.id, f.title, f.content, f.source_url, f.source_created_at,
+       COALESCE(t.tags,'[]') AS tags
+FROM   filtered f
+LEFT JOIN LATERAL (
+  SELECT json_agg(
+           jsonb_build_object('id',t.id,'name',t.name)
+           ORDER BY t.name
+         ) AS tags
+  FROM   whatsnews_tags wnt2
+  JOIN   tags t ON t.id = wnt2.tag_id
+  WHERE  wnt2.whatsnew_id = f.id
+) t ON TRUE
+ORDER BY f.source_created_at DESC, f.id;
+`
+	} else { // 태그 선택이 없을 때
+		countSQL = `
+SELECT COUNT(*) FROM whatsnews wn
+` + buildWhere("") + `;
+`
+
+		dataSQL = `
+WITH filtered AS (
+  SELECT  wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at
+  FROM    whatsnews wn
+  ` + buildWhere("") + `
+  ORDER BY wn.source_created_at DESC, wn.id
+  LIMIT   $` + strconv.Itoa(limitParam) + ` OFFSET $` + strconv.Itoa(offsetParam) + `
+)
+SELECT f.id, f.title, f.content, f.source_url, f.source_created_at,
+       COALESCE(t.tags,'[]') AS tags
+FROM   filtered f
+LEFT JOIN LATERAL (
+  SELECT json_agg(
+           jsonb_build_object('id',t.id,'name',t.name)
+           ORDER BY t.name
+         ) AS tags
+  FROM   whatsnews_tags wnt2
+  JOIN   tags t ON t.id = wnt2.tag_id
+  WHERE  wnt2.whatsnew_id = f.id
+) t ON TRUE
+ORDER BY f.source_created_at DESC, f.id;
+`
+	}
+
+	var total int
+	if err := pool.QueryRow(ctx, countSQL, args[:limitParam-1]...).Scan(&total); err != nil {
 		return WhatsNewsResult{}, err
 	}
 
-	queryData := `
-SELECT wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at,
-  COALESCE(
-    json_agg(tag_obj ORDER BY tag_obj->>'name') FILTER (WHERE tag_obj IS NOT NULL), '[]'
-  ) AS tags
-FROM (
-    SELECT wn.id
-    FROM whatsnews wn
-    LEFT JOIN whatsnews_tags wnt ON wn.id = wnt.whatsnew_id
-    ` + whereSQL + `
-    GROUP BY wn.id
-    ` + havingSQL + `
-    ORDER BY MAX(wn.source_created_at) DESC, wn.title
-    LIMIT $` + strconv.Itoa(limitParam) + ` OFFSET $` + strconv.Itoa(offsetParam) + `
-) filtered
-JOIN whatsnews wn ON wn.id = filtered.id
-LEFT JOIN (
-    SELECT wnt2.whatsnew_id, jsonb_build_object('id', t2.id, 'name', t2.name) AS tag_obj
-    FROM whatsnews_tags wnt2
-    JOIN tags t2 ON t2.id = wnt2.tag_id
-) tag_objs ON wn.id = tag_objs.whatsnew_id
-GROUP BY wn.id, wn.title, wn.content, wn.source_url, wn.source_created_at
-ORDER BY wn.source_created_at DESC, wn.title
-`
-	rows, err := pool.Query(ctx, queryData, args...)
+	rows, err := pool.Query(ctx, dataSQL, args...)
 	if err != nil {
 		return WhatsNewsResult{}, err
 	}
@@ -109,32 +180,26 @@ ORDER BY wn.source_created_at DESC, wn.title
 
 	var items []WhatsNews
 	for rows.Next() {
-		var item WhatsNews
-		var tagsJson []byte
-
-		err := rows.Scan(
-			&item.Id, &item.Title, &item.Content,
-			&item.SourceUrl,
-			&item.SourceCreatedAt,
-			&tagsJson,
-		)
-		if err != nil {
+		var it WhatsNews
+		var tagsJSON []byte
+		if err := rows.Scan(&it.Id, &it.Title, &it.Content, &it.SourceUrl, &it.SourceCreatedAt, &tagsJSON); err != nil {
 			return WhatsNewsResult{}, err
 		}
-		if err := json.Unmarshal(tagsJson, &item.Tags); err != nil {
+		if err := json.Unmarshal(tagsJSON, &it.Tags); err != nil {
 			return WhatsNewsResult{}, err
 		}
-		items = append(items, item)
+		items = append(items, it)
+	}
+	if err := rows.Err(); err != nil {
+		return WhatsNewsResult{}, err
 	}
 
-	page := 1
-	if limit > 0 {
-		page = offset/limit + 1
+	page := offset/limit + 1
+	totalPage := (total + limit - 1) / limit
+	if totalPage == 0 {
+		totalPage = 1
 	}
-	totalPage := 1
-	if limit > 0 {
-		totalPage = (total + limit - 1) / limit
-	}
+
 	return WhatsNewsResult{
 		Items:     items,
 		Total:     total,
@@ -142,5 +207,5 @@ ORDER BY wn.source_created_at DESC, wn.title
 		Offset:    offset,
 		Page:      page,
 		TotalPage: totalPage,
-	}, rows.Err()
+	}, nil
 }

@@ -46,6 +46,7 @@ SELECT cron.schedule(
        );
 
 CREATE INDEX IF NOT EXISTS idx_whatsnews_source_created_at ON whatsnews (source_created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_whatsnews_scid_id ON whatsnews (source_created_at DESC, id);
 
 CREATE INDEX IF NOT EXISTS idx_whatsnews_tags_tag_id ON whatsnews_tags (tag_id);
 CREATE INDEX IF NOT EXISTS idx_whatsnews_tags_whatsnew_id ON whatsnews_tags (whatsnew_id);
