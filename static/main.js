@@ -100,6 +100,49 @@ function initSidebarResize() {
   });
 }
 
+function attachTooltip(btn, text) {
+  let tipEl = null;
+  function show() {
+    tipEl = document.createElement("div");
+    tipEl.className = "tooltip-box show";
+    tipEl.textContent = text;
+    document.body.appendChild(tipEl);
+
+    const rect = btn.getBoundingClientRect();
+    tipEl.style.top = window.scrollY + rect.top - tipEl.offsetHeight - 6 + "px";
+    tipEl.style.left =
+      window.scrollX +
+      rect.left +
+      rect.width / 2 -
+      tipEl.offsetWidth / 2 +
+      "px";
+  }
+  function hide() {
+    if (tipEl) {
+      tipEl.remove();
+      tipEl = null;
+    }
+  }
+  btn.addEventListener("mouseenter", show);
+  btn.addEventListener("mouseleave", hide);
+  btn.addEventListener("mousedown", hide);
+}
+
+/* ========= 클릭 후 임시 툴팁 ========= */
+function showTempTooltip(btn, message, duration = 1200) {
+  const tip = document.createElement("div");
+  tip.className = "tooltip-box show";
+  tip.textContent = message;
+  document.body.appendChild(tip);
+
+  const rect = btn.getBoundingClientRect();
+  tip.style.top = window.scrollY + rect.top - tip.offsetHeight - 6 + "px";
+  tip.style.left =
+    window.scrollX + rect.left + rect.width / 2 - tip.offsetWidth / 2 + "px";
+
+  setTimeout(() => tip.remove(), duration);
+}
+
 /* ========= DOMContentLoaded ========= */
 document.addEventListener("DOMContentLoaded", () => {
   loadTagList();
@@ -307,12 +350,55 @@ function appendCards(items) {
       let u = it.source_url;
       if (!/^https?:\/\//.test(u))
         u = "https://aws.amazon.com" + (u.startsWith("/") ? u : "/" + u);
+
+      /* ─ 링크 ─ */
       const a = document.createElement("a");
       a.href = u;
       a.target = "_blank";
       a.textContent = it.title;
       a.className = "text-blue-700 hover:underline";
       title.appendChild(a);
+
+      /* ─ Copy 버튼 (SVG 아이콘) ─ */
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className =
+        "ml-2 p-1 text-gray-400 hover:text-blue-600 focus:outline-none cursor-pointer";
+
+      /* 아이콘 정의 */
+      const iconDefault = `
+        <svg xmlns="http://www.w3.org/2000/svg"
+             viewBox="0 0 115.77 122.88"
+             class="w-4 h-4 fill-current"><path d="M89.62,13.96v7.73h12.19h0.01v0.02c3.85,0.01,7.34,1.57,9.86,4.1c2.5,2.51,4.06,5.98,4.07,9.82h0.02v0.02 v73.27v0.01h-0.02c-0.01,3.84-1.57,7.33-4.1,9.86c-2.51,2.5-5.98,4.06-9.82,4.07v0.02h-0.02h-61.7H40.1v-0.02 c-3.84-0.01-7.34-1.57-9.86-4.1c-2.5-2.51-4.06-5.98-4.07-9.82h-0.02v-0.02V92.51H13.96h-0.01v-0.02c-3.84-0.01-7.34-1.57-9.86-4.1 c-2.5-2.51-4.06-5.98-4.07-9.82H0v-0.02V13.96v-0.01h0.02c0.01-3.85,1.58-7.34,4.1-9.86c2.51-2.5,5.98-4.06,9.82-4.07V0h0.02h61.7 h0.01v0.02c3.85,0.01,7.34,1.57,9.86,4.1c2.5,2.51,4.06,5.98,4.07,9.82h0.02V13.96L89.62,13.96z M79.04,21.69v-7.73v-0.02h0.02 c0-0.91-0.39-1.75-1.01-2.37c-0.61-0.61-1.46-1-2.37-1v0.02h-0.01h-61.7h-0.02v-0.02c-0.91,0-1.75,0.39-2.37,1.01 c-0.61,0.61-1,1.46-1,2.37h0.02v0.01v64.59v0.02h-0.02c0,0.91,0.39,1.75,1.01,2.37c0.61,0.61,1.46,1,2.37,1v-0.02h0.01h12.19V35.65 v-0.01h0.02c0.01-3.85,1.58-7.34,4.1-9.86c2.51-2.5,5.98-4.06,9.82-4.07v-0.02h0.02H79.04L79.04,21.69z M105.18,108.92V35.65v-0.02 h0.02c0-0.91-0.39-1.75-1.01-2.37c-0.61-0.61-1.46-1-2.37-1v0.02h-0.01h-61.7h-0.02v-0.02c-0.91,0-1.75,0.39-2.37,1.01 c-0.61,0.61-1,1.46-1,2.37h0.02v0.01v73.27v0.02h-0.02c0,0.91,0.39,1.75,1.01,2.37c0.61,0.61,1.46,1,2.37,1v-0.02h0.01h61.7h0.02 v0.02c0.91,0,1.75-0.39,2.37-1.01c0.61-0.61,1-1.46,1-2.37h-0.02V108.92L105.18,108.92z"/></svg>`;
+      const iconChecked = `
+        <svg xmlns="http://www.w3.org/2000/svg"
+             viewBox="0 0 128 128"
+             class="w-4 h-4 fill-current"><path d="M0 52.88l22.68-0.3c8.76 5.05 16.6 11.59 23.35 19.86C63.49 43.49 83.55 19.77 105.6 0h17.28C92.05 34.25 66.89 70.92 46.77 109.76C36.01 86.69 20.96 67.27 0 52.88Z"/></svg>`;
+
+      copyBtn.innerHTML = iconDefault;
+      attachTooltip(copyBtn, "링크 복사");
+
+      copyBtn.onclick = (e) => {
+        e.preventDefault();
+        navigator.clipboard
+          .writeText(u)
+          .then(() => {
+            copyBtn.classList.replace("text-gray-400", "text-green-600");
+            copyBtn.classList.remove("hover:text-blue-600");
+            copyBtn.innerHTML = iconChecked;
+
+            setTimeout(() => {
+              copyBtn.classList.replace("text-green-600", "text-gray-400");
+              copyBtn.classList.add("hover:text-blue-600");
+              copyBtn.innerHTML = iconDefault;
+            }, 1200);
+
+            /* ▷ 복사 완료 툴팁 */
+            showTempTooltip(copyBtn, "복사 완료");
+          })
+          .catch(() => alert("클립보드 복사 실패"));
+      };
+      title.appendChild(copyBtn);
     } else {
       title.textContent = it.title;
     }

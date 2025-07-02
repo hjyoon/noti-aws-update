@@ -82,6 +82,23 @@
         break-inside: avoid; /* 열 내부에서 끊김 방지 */
         margin-bottom: 1.5rem; /* 카드 간 상하 간격 */
       }
+
+      .tooltip-box {
+        position: absolute;
+        z-index: 9999;
+        font-size: 0.75rem; /* text-xs */
+        background: #374151; /* gray-700 */
+        color: #fff;
+        border-radius: 0.25rem; /* rounded */
+        padding: 0.125rem 0.5rem; /* py-0.5 px-2 */
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .tooltip-box.show {
+        opacity: 1;
+      }
     </style>
   </head>
 
